@@ -23,5 +23,8 @@
   },
   "peerDependencies": {
     "cornerstone-tools": "^4.8.1"
+  },
+  "dependencies": {
+    "cornerstone-core": "^2.3.0"
   }
 }
