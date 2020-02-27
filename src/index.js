@@ -23,7 +23,7 @@ export default class ACTool extends BaseTool {
         const {rows, columns} = eventData.image;
         const imageData = eventData.image.getPixelData();
 
-        const threshold = 0.3;
+        const threshold = 0.3;//
 
         const generalSeriesModuleMeta = cornerstone.metaData.get(
             'generalSeriesModule',
@@ -36,12 +36,12 @@ export default class ACTool extends BaseTool {
         switch (generalSeriesModuleMeta.modality) {
             case 'CT':
                 grayScale = imageData.map(value =>
-                    Math.round(((value + 2048) / 4096) * 256)
+                    Math.round(((value + 2048) / 4096)*256) // Math.round(((value + 2048) / 4096) * 255)
                 );
                 break;
             case 'MR':
                 grayScale = imageData.map(value =>
-                    Math.round((value / eventData.image.maxPixelValue) * 256)
+                    Math.round((value / eventData.image.maxPixelValue)*256) //Math.round((value / eventData.image.maxPixelValue) * 255)
                 );
                 break;
             default:
@@ -80,7 +80,7 @@ export default class ACTool extends BaseTool {
         let binarygradient = init2DArray(rows, columns);
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < columns; x++) {
-                if (channelGradient[x][y] > threshold * maxgradient / 100) { //strange coef?
+                if (channelGradient[x][y] > threshold * maxgradient / 100) { //strange coef? threshold * maxgradient / 100
                     binarygradient[x][y] = 1;
                 } else {
                     channelGradient[x][y] = 0;
@@ -88,8 +88,9 @@ export default class ACTool extends BaseTool {
             }
         }
 
-        //console.log(binarygradient);
+        console.log(binarygradient);
 
+        //данные не нормализованы относительно 255
         /*
         //render circle's contour radius = r
         let mousePosition = eventData.currentPoints.image;
@@ -97,12 +98,21 @@ export default class ACTool extends BaseTool {
         const circleArray = getCircle(radius, rows, columns, mousePosition.x.valueOf(), mousePosition.y.valueOf());
 
 
-       const canvas = document.getElementsByClassName(
-           'cornerstone-canvas'
-       )[0];
-       const canvasContext = canvas.getContext('2d');
-       canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-       canvasContext.drawImage(grayScale, 0, 0);
+        let ex_data = [];
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                ex_data[rows * y + x] = channelGradient[y][x];
+            }
+        }
+        ;
+        const canvas = document.getElementsByClassName(
+            'cornerstone-canvas'
+        )[0];
+        const canvasContext = canvas.getContext('2d');
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        let im = canvasContext.createImageData(ex_data);
+        canvasContext.putImageData(im);
 */
 
     }
@@ -151,9 +161,7 @@ function getCircle(
 }
 
 function get2DArray(imagePixelData, height, width) {
-
     let Array2d = [];
-
     for (let i = 0; i < height; i++) {
         Array2d.push(
             Array.from(imagePixelData.slice(i * width, (i + 1) * width))
@@ -172,3 +180,5 @@ function init2DArray(rows, columns) {
     }
     return arr;
 }
+
+
