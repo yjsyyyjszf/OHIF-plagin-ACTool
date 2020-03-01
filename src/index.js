@@ -1,6 +1,8 @@
 import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
 
+import {mean} from "mathjs";
+
 const BaseTool = csTools.importInternal("base/BaseTool");
 
 export default class ACTool extends BaseTool {
@@ -23,7 +25,7 @@ export default class ACTool extends BaseTool {
         const {rows, columns} = eventData.image;
         const imageData = eventData.image.getPixelData();
 
-        const threshold = 0.3;//
+        let threshold = 0;
 
         const generalSeriesModuleMeta = cornerstone.metaData.get(
             'generalSeriesModule',
@@ -36,12 +38,12 @@ export default class ACTool extends BaseTool {
         switch (generalSeriesModuleMeta.modality) {
             case 'CT':
                 grayScale = imageData.map(value =>
-                    Math.round(((value + 2048) / 4096)*256) // Math.round(((value + 2048) / 4096) * 255)
+                    Math.round(((value + 2048) / 4096) * 255)
                 );
                 break;
             case 'MR':
                 grayScale = imageData.map(value =>
-                    Math.round((value / eventData.image.maxPixelValue)*256) //Math.round((value / eventData.image.maxPixelValue) * 255)
+                    Math.round((value / eventData.image.maxPixelValue) * 255) //TODO find max_value вроде есть бит в структуре
                 );
                 break;
             default:
@@ -58,39 +60,62 @@ export default class ACTool extends BaseTool {
         let maxgradient = 0;
         for (let y = 0; y < rows - 2; y++) {
             for (let x = 0; x < columns - 2; x++) {
-                let p00 = pixelArray2D[x][y];
-                let p10 = pixelArray2D[x + 1][y];
-                let p20 = pixelArray2D[x + 2][y];
-                let p01 = pixelArray2D[x][y + 1];
-                let p21 = pixelArray2D[x + 2][y + 1];
-                let p02 = pixelArray2D[x][y + 2];
-                let p12 = pixelArray2D[x + 1][y + 2];
-                let p22 = pixelArray2D[x + 2][y + 2];
+                let p00 = pixelArray2D[y][x];//
+                let p10 = pixelArray2D[y + 1][x];
+                let p20 = pixelArray2D[y + 2][x];
+                let p01 = pixelArray2D[y][x + 1];
+                let p21 = pixelArray2D[y + 2][x + 1];
+                let p02 = pixelArray2D[y][x + 2];
+                let p12 = pixelArray2D[y + 1][x + 2];
+                let p22 = pixelArray2D[y + 2][x + 2];
                 let sx = (p20 + 2 * p21 + p22) - (p00 + 2 * p01 + p02);
                 let sy = (p02 + 2 * p12 + p22) - (p00 + 2 * p10 + p10);
                 let snorm = Math.floor(Math.sqrt(sx * sx + sy * sy));
-                channelGradient[x + 1][y + 1] = snorm;
+                channelGradient[y + 1][x + 1] = snorm;
                 maxgradient = Math.max(maxgradient, snorm);
             }
         }
 
-        //console.log(channelGradient);
+
+        //threshold mean
+        threshold = mean(channelGradient);
+        console.log(threshold);
 
         //thresholding
         let binarygradient = init2DArray(rows, columns);
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < columns; x++) {
-                if (channelGradient[x][y] > threshold * maxgradient / 100) { //strange coef? threshold * maxgradient / 100
-                    binarygradient[x][y] = 1;
+                if (channelGradient[y][x] > threshold) {
+                    binarygradient[y][x] = 1;
                 } else {
-                    channelGradient[x][y] = 0;
+                    channelGradient[y][x] = 0;
                 }
             }
         }
 
-        console.log(binarygradient);
 
-        //данные не нормализованы относительно 255
+        //console.log(channelGradient);
+        /*
+                function avg(data){
+                    let sum = 0;
+                    for(let i=0;i<data.length;i++){
+                        for(let j=0;i<data[i].length;j++){
+                            sum= sum + data[i][j];
+                        }
+                    }
+                    return sum;//
+                }
+
+                console.log(avg(channelGradient)/(columns*rows));//
+                //!strange coef? threshold * maxgradient / 100
+                threshold = mean
+        */
+        //console.log(binarygradient);
+        //Chamfer Dist
+        //algorithm
+
+
+        // !данные не нормализованы относительно 255
         /*
         //render circle's contour radius = r
         let mousePosition = eventData.currentPoints.image;
@@ -106,15 +131,26 @@ export default class ACTool extends BaseTool {
             }
         }
         ;
+        вопросы с индексами и порог
+
+        //
         const canvas = document.getElementsByClassName(
             'cornerstone-canvas'
         )[0];
         const canvasContext = canvas.getContext('2d');
-        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-        let im = canvasContext.createImageData(ex_data);
-        canvasContext.putImageData(im);
-*/
+        let data = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
 
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                let id = (y * rows + x) * 4;
+                data[id] = data[id + 1] = data[id + 2] = binarygradient[y][x] === 1 ? 255 : 0;
+                data[id + 3] = 0xFF;
+            }
+        }
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        canvasContext.putImageData(data, 0, 0);
+        GVF - значения нормируются, в kass нет
+*/
     }
 
 
