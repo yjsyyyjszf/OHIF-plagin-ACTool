@@ -2,6 +2,7 @@ import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
 
 import {mean} from "mathjs";
+import {ChamferDistance} from "./ChamferDistance"
 
 const BaseTool = csTools.importInternal("base/BaseTool");
 
@@ -49,7 +50,8 @@ export default class ACTool extends BaseTool {
             default:
                 grayScale = pixelArray;
         }
-
+//TODO разобраться как преобразовать снимки маммографии к grayscale
+        //TODO нормализовать или нет значения в грейскайл
         //console.log(grayScale);
 
         let pixelArray2D = get2DArray(grayScale, rows, columns);
@@ -79,7 +81,7 @@ export default class ACTool extends BaseTool {
 
         //threshold mean
         threshold = mean(channelGradient);
-        console.log(threshold);
+        //console.log(threshold);
 
         //thresholding
         let binarygradient = init2DArray(rows, columns);
@@ -93,6 +95,9 @@ export default class ACTool extends BaseTool {
             }
         }
 
+        //ChamferDistance
+        let dist = ChamferDistance.compute(ChamferDistance.chamfer13, binarygradient, columns, rows);
+        console.log(dist);
 
         //console.log(channelGradient);
         /*
