@@ -1,8 +1,10 @@
 import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
+import debounce from 'lodash/debounce';
 
 import {mean} from "mathjs";
 import {ChamferDistance} from "./ChamferDistance"
+import {KASS} from "./KASS"
 
 const BaseTool = csTools.importInternal("base/BaseTool");
 
@@ -18,6 +20,29 @@ export default class ACTool extends BaseTool {
 
         this.preMouseDownCallback = this.preMouseDownCallback.bind(this);
 
+
+        this.doActiveContour = debounce(evt => {
+
+            var acm = new KASS({
+                maxIteration: 100,
+                minlen: 3,
+                maxlen: 6,
+
+                gradient: this.gradient,
+                flow: this.flow,
+                width: this.w,
+                height: this.h,
+                dots: [...this.point],
+
+                render(snake, i, iLength, finished) {
+                    console.log(snake);
+                }
+            });
+
+            acm.compute();
+        }, 1000);
+
+
     }
 
     preMouseDownCallback(evt) {
@@ -26,7 +51,7 @@ export default class ACTool extends BaseTool {
         const {rows, columns} = eventData.image;
         const imageData = eventData.image.getPixelData();
 
-        let threshold = 0;
+        let threshold;
 
         const generalSeriesModuleMeta = cornerstone.metaData.get(
             'generalSeriesModule',
@@ -44,14 +69,15 @@ export default class ACTool extends BaseTool {
                 break;
             case 'MR':
                 grayScale = imageData.map(value =>
-                    Math.round((value / eventData.image.maxPixelValue) * 255) //TODO find max_value вроде есть бит в структуре
+                    Math.round((value / eventData.image.maxPixelValue) * 255) //TODO find max_value вроде есть бит в структуре максимального значения
                 );
                 break;
             default:
                 grayScale = pixelArray;
         }
-//TODO разобраться как преобразовать снимки маммографии к grayscale
-        //TODO нормализовать или нет значения в грейскайл
+
+        //TODO разобраться как преобразовать снимки маммографии к grayscale
+        //TODO нормализовать или нет значения в грейскайл, пока заисит от алгоритма
         //console.log(grayScale);
 
         let pixelArray2D = get2DArray(grayScale, rows, columns);
@@ -78,9 +104,10 @@ export default class ACTool extends BaseTool {
             }
         }
 
+        //console.log(channelGradient);
 
         //threshold mean
-        threshold = mean(channelGradient);
+        threshold = mean(channelGradient); //может будет настраиваемым параметром
         //console.log(threshold);
 
         //thresholding
@@ -95,67 +122,54 @@ export default class ACTool extends BaseTool {
             }
         }
 
+        //console.log(binarygradient);
+
         //ChamferDistance
         let dist = ChamferDistance.compute(ChamferDistance.chamfer13, binarygradient, columns, rows);
-        console.log(dist);
+        //console.log(dist);
 
-        //console.log(channelGradient);
+        //channelFlow
+        let channelFlow = init2DArray(rows, columns);
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                channelFlow[x][y] = Math.floor(dist[x][y])
+            }
+        }
+
+        this.w = columns;
+        this.h = rows;
+        this.gradient = binarygradient;
+        this.flow = dist;
+        let mousePosition = eventData.currentPoints.image;
+        let radius = 30;
+        this.point = getCircle(radius, rows, columns, mousePosition.x.valueOf(), mousePosition.y.valueOf());
+
+        //Kass
+        this.doActiveContour(evt);
+
         /*
-                function avg(data){
-                    let sum = 0;
-                    for(let i=0;i<data.length;i++){
-                        for(let j=0;i<data[i].length;j++){
-                            sum= sum + data[i][j];
-                        }
-                    }
-                    return sum;//
-                }
-
-                console.log(avg(channelGradient)/(columns*rows));//
-                //!strange coef? threshold * maxgradient / 100
-                threshold = mean
-        */
-        //console.log(binarygradient);
-        //Chamfer Dist
-        //algorithm
-
-
-        // !данные не нормализованы относительно 255
-        /*
+       разобраться с масштабом
         //render circle's contour radius = r
         let mousePosition = eventData.currentPoints.image;
-        let radius = 50;
+        let radius = 30;
         const circleArray = getCircle(radius, rows, columns, mousePosition.x.valueOf(), mousePosition.y.valueOf());
 
-
-        let ex_data = [];
-
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < columns; x++) {
-                ex_data[rows * y + x] = channelGradient[y][x];
-            }
-        }
-        ;
-        вопросы с индексами и порог
-
-        //
-        const canvas = document.getElementsByClassName(
-            'cornerstone-canvas'
-        )[0];
-        const canvasContext = canvas.getContext('2d');
-        let data = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
-
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < columns; x++) {
-                let id = (y * rows + x) * 4;
-                data[id] = data[id + 1] = data[id + 2] = binarygradient[y][x] === 1 ? 255 : 0;
-                data[id + 3] = 0xFF;
-            }
-        }
-        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-        canvasContext.putImageData(data, 0, 0);
         GVF - значения нормируются, в kass нет
-*/
+        рефакторинг кода после завершения каждого этапа
+
+        // initial points
+        double radius = ((W)/2 + (H)/2) / 2;
+        double perimeter = 6.28 * radius*0.6;
+        int nmb = (int) (perimeter / MAXLEN);
+        Point[] circle = new Point[nmb];
+        for (int i = 0; i < circle.length; i++) {
+            double x = (W / 2 + 0) + (W / 2 - 2) * Math.cos((6.28 * i) / circle.length);
+            double y = (H / 2 + 0) + (H / 2 - 2) * Math.sin((6.28 * i) / circle.length);
+            circle[i] = new Point((int) x, (int) y);
+        }
+
+        вынести часто используемые функции
+    */
     }
 
 
