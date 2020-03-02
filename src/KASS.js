@@ -11,9 +11,9 @@ export const KASS = function () {
         this.gradient = params.gradient;
         this.flow = params.flow;
         this.dots = params.dots;
-        this.snake = [];
+        //this.snake = [];
 
-        this.snakelength = 0;
+        this.snakelength = 0;//
 
         //binding the scope for animationFrameRequests
         this.update = this.update.bind(this);
@@ -27,14 +27,14 @@ export const KASS = function () {
 
         this.onComplete = _onComplete;
         //this.snake = this.dots;
-        this.snake = this.dots.map(([x, y]) => [
-            x,
-            y,
-        ]);
+        this.snake = this.dots;
+
+       // console.log(this.snake);
 
         this.it = 0;
         this.length = 0;
-        this.last = this.getsnakelength();
+        this.last = getsnakelength(this.snake);//this.getsnakelength(this.snake);
+        //console.log(this.last);
         cancelAnimationFrame(this.interval);
 
         // update вызывается рекурсивно
@@ -54,7 +54,7 @@ export const KASS = function () {
         }
         this.loop();
         this._render();
-        this.length = this.getsnakelength();
+        this.length = getsnakelength(this.snake);//this.getsnakelength(this.snake);
         if (++this.it >= this.maxIteration) {
             //console.log("points:", this.snake.length, 'iteration:', this.it);
             cancelAnimationFrame(this.interval);
@@ -67,6 +67,7 @@ export const KASS = function () {
     }
 
     function loop() {
+        var scope = this;
 
         var alpha = 1.1, beta = 1.2, gamma = 1.5, delta = 3.0;
 
@@ -80,7 +81,7 @@ export const KASS = function () {
         //var scope = this;
 
         let p = [];
-        this.snakelength = getsnakelength();
+        this.snakelength = getsnakelength(this.snake);
 
         var newsnake = [];
 
@@ -227,11 +228,11 @@ export const KASS = function () {
     }
 
     // total length of snake
-    function getsnakelength() {
+    function getsnakelength(snake) {
         var length = 0;
-        for (var i = 0; i < this.snake.length; i++) {
-            var cur = this.snake[i];
-            var next = this.snake[(i + 1) % this.snake.length];
+        for (var i = 0; i < snake.length; i++) {
+            var cur = snake[i];
+            var next = snake[(i + 1) % snake.length];
             length += distance(cur, next);
         }
         return length;

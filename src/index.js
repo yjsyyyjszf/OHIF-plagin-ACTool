@@ -23,16 +23,22 @@ export default class ACTool extends BaseTool {
 
         this.doActiveContour = debounce(evt => {
 
+            let binaryFradient = this.gradient;//
+            let chDist = this.flow;//
+            let width = this.w;//
+            let height = this.h;//
+            let points = this.point;//
+
             var acm = new KASS({
                 maxIteration: 100,
                 minlen: 3,
                 maxlen: 6,
 
-                gradient: this.gradient,
-                flow: this.flow,
-                width: this.w,
-                height: this.h,
-                dots: [...this.point],
+                gradient: binaryFradient,
+                flow: chDist,
+                width: width,
+                height: height,
+                dots: [...points],
 
                 render(snake, i, iLength, finished) {
                     console.log(snake);
