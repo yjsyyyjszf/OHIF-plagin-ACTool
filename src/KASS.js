@@ -11,14 +11,12 @@ export const KASS = function () {
         this.params = params;//
         this.w = params.width;
         this.h = params.height;
+        this.alpha = params.alpha || 1.1;
+        this.beta = params.beta || 1.2;
+        this.gamma = params.gamma || 1.5;
 
-        var grayscaleImage = params.image;
-
-        var Sobel = filtrSobel(grayscaleImage, this.w, this.h);
-
+        var Sobel = filtrSobel(params.image, this.w, this.h);
         this.threshold = params.threshold || mean(Sobel);
-
-        console.log(this.threshold);//
 
         this.gradient = thresholding(Sobel, this.h, this.w, this.threshold);
         this.flow = getFlow(this.gradient, this.w, this.h);
@@ -73,14 +71,11 @@ export const KASS = function () {
 
     function loop() {
 
-
-        var alpha = 1.1, beta = 1.2, gamma = 1.5;
-
         var wSize = 2;
 
         var e_uniformity = init2DArray(wSize + 1, wSize + 1);
         var e_curvature = init2DArray(wSize + 1, wSize + 1);
-        //var e_flow = init2DArray(wSize + 1, wSize + 1);
+        var e_flow = init2DArray(wSize + 1, wSize + 1);
 
 
         let p = [];
@@ -101,11 +96,14 @@ export const KASS = function () {
 
                     e_uniformity[1 + dx][1 + dy] = f_uniformity(prev, this.length, p, this.snake.length);
                     e_curvature[(wSize / 2) + dx][(wSize / 2) + dy] = f_curvature(prev, p, next);
+                    e_flow[1 + dx][1 + dy] = f_ext(cur, p, this.flow);
+
                 }
             }
 
             normalize(e_uniformity);
             normalize(e_curvature);
+            normalize(e_flow);
 
             let emin = Number.MAX_VALUE;
             let e = 0;
@@ -114,9 +112,9 @@ export const KASS = function () {
             for (let dy = (wSize / 2) * -1; dy <= (wSize / 2); dy++) {
                 for (let dx = (wSize / 2) * -1; dx <= (wSize / 2); dx++) {
                     e = 0;
-                    e += alpha * e_uniformity[1 + dx][1 + dy]; // internal energy
-                    e += beta * e_curvature[(wSize / 2) + dx][(wSize / 2) + dy];  // internal energy
-                    //e += gamma * e_flow[(wSize / 2) + dx][(wSize / 2) + dy];  // external energy
+                    e += this.alpha * e_uniformity[1 + dx][1 + dy]; // internal energy
+                    e += this.beta * e_curvature[(wSize / 2) + dx][(wSize / 2) + dy];  // internal energy
+                    e += this.gamma * e_flow[(wSize / 2) + dx][(wSize / 2) + dy];  // external energy
                     if (e < emin) {
                         emin = e;
                         x = cur[0] + dx;
@@ -130,7 +128,7 @@ export const KASS = function () {
             if (y < 1) y = 1;
             if (y >= (this.height - 1)) y = this.height - 2;
 
-            newsnake.push([x, y]);
+            newsnake.push([Math.floor(x), Math.floor(y)]);
         }
         this.snake = newsnake;
 
@@ -231,6 +229,14 @@ export const KASS = function () {
         return cn;
     }
 
+    function f_ext(cur, p, flow) {
+        // gradient flow
+        let dcur = flow[cur[0]][cur[1]];
+        let dp = flow[p[0]][p[1]];
+        let d = dp - dcur;
+        return d;
+    }
+
     function filtrSobel(data, columns, rows) {
 
         let channelGradient = init2DArray(rows, columns);
@@ -304,7 +310,7 @@ export const KASS = function () {
     }
 
     function lerp(t, a, b) {
-        return a + t * (b - a);
+        return Math.floor(a + t * (b - a));
     }
 
     var p = KASS.prototype;
