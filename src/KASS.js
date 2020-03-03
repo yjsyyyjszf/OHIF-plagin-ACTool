@@ -5,15 +5,17 @@ export const KASS = function () {
         this.maxIteration = params.maxIteration || 250;
         this.minlen = params.minlen || Math.pow(.1, 2);
         this.maxlen = params.maxlen || Math.pow(5, 2);
-        this.params = params;
+        this.params = params;//
         this.w = params.width;
         this.h = params.height;
         this.gradient = params.gradient;
         this.flow = params.flow;
-        this.dots = params.dots;
+        this.dots = params.dots;//
         //this.snake = [];
 
-        this.snakelength = 0;//
+        this.length = 0;
+        this.snake = this.dots;//
+        //this.snakelength = 0;//
 
         //binding the scope for animationFrameRequests
         this.update = this.update.bind(this);
@@ -26,15 +28,15 @@ export const KASS = function () {
     function compute(_onComplete) {
 
         this.onComplete = _onComplete;
-        //this.snake = this.dots;
+
         this.snake = this.dots;
 
-       // console.log(this.snake);
+        //ok console.log(this.snake);
 
         this.it = 0;
         this.length = 0;
-        this.last = getsnakelength(this.snake);//this.getsnakelength(this.snake);
-        //console.log(this.last);
+        this.last = this.getsnakelength();//this.getsnakelength(this.snake);
+        // ok console.log(this.last);
         cancelAnimationFrame(this.interval);
 
         // update вызывается рекурсивно
@@ -54,7 +56,8 @@ export const KASS = function () {
         }
         this.loop();
         this._render();
-        this.length = getsnakelength(this.snake);//this.getsnakelength(this.snake);
+        this.length = this.getsnakelength();
+        // - console.log(this.length);//this.getsnakelength(this.snake);
         if (++this.it >= this.maxIteration) {
             //console.log("points:", this.snake.length, 'iteration:', this.it);
             cancelAnimationFrame(this.interval);
@@ -67,7 +70,7 @@ export const KASS = function () {
     }
 
     function loop() {
-        var scope = this;
+
 
         var alpha = 1.1, beta = 1.2, gamma = 1.5, delta = 3.0;
 
@@ -81,11 +84,12 @@ export const KASS = function () {
         //var scope = this;
 
         let p = [];
-        this.snakelength = getsnakelength(this.snake);
+        this.length = this.getsnakelength();
+
 
         var newsnake = [];
 
-        for (let i = 0; i < this.snake.length(); i++) {
+        for (let i = 0; i < this.snake.length; i++) {
             let prev = this.snake[(i + this.snake.length - 1) % this.snake.length];
             let cur = this.snake[i];
             let next = this.snake[(i + 1) % this.snake.length];
@@ -95,7 +99,7 @@ export const KASS = function () {
                     p[0] = cur[0] + dx;
                     p[1] = cur[1] + dy;
 
-                    e_uniformity[1 + dx][1 + dy] = f_uniformity(prev, next, p);
+                    e_uniformity[1 + dx][1 + dy] = f_uniformity(prev, this.length, p, this.snake.length);
                     e_curvature[(wSize / 2) + dx][(wSize / 2) + dy] = f_curvature(prev, p, next);
                 }
             }
@@ -179,7 +183,7 @@ export const KASS = function () {
     }
 
     function normalize(array3x3) {
-        sum = 0;
+        let sum = 0;
         for (let i = 0; i < 3; i++) {
             for (let j = 0; j < 3; j++) {
                 sum += Math.abs(array3x3[i][j]);
@@ -195,13 +199,13 @@ export const KASS = function () {
         }
     }
 
-    function f_uniformity(prev, next, p) { //next?
+    function f_uniformity(prev, snakelength, p, snakesize) { //next?
 
         // length of previous segment
         let un = distance(prev, p);
 
         // mesure of uniformity
-        let avg = this.snakelength / this.snake.length;
+        let avg = snakelength / snakesize;
         let dun = Math.abs(un - avg);
 
         // elasticity energy
@@ -228,11 +232,11 @@ export const KASS = function () {
     }
 
     // total length of snake
-    function getsnakelength(snake) {
+    function getsnakelength() {
         var length = 0;
-        for (var i = 0; i < snake.length; i++) {
-            var cur = snake[i];
-            var next = snake[(i + 1) % snake.length];
+        for (var i = 0; i < this.snake.length; i++) {
+            var cur = this.snake[i];
+            var next = this.snake[(i + 1) % this.snake.length];
             length += distance(cur, next);
         }
         return length;

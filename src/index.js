@@ -174,7 +174,7 @@ export default class ACTool extends BaseTool {
             circle[i] = new Point((int) x, (int) y);
         }
 
-        вынести часто используемые функции
+        TODO вынести функции обработки в сами алгоритмы
     */
     }
 
