@@ -1,3 +1,6 @@
+import {mean} from "mathjs";
+import {ChamferDistance} from "./ChamferDistance";
+
 export const KASS = function () {
 
     function KASS(params) {
@@ -8,14 +11,21 @@ export const KASS = function () {
         this.params = params;//
         this.w = params.width;
         this.h = params.height;
-        this.gradient = params.gradient;
-        this.flow = params.flow;
+
+        var grayscaleImage = params.image;
+
+        var Sobel = filtrSobel(grayscaleImage, this.w, this.h);
+
+        this.threshold = params.threshold || mean(Sobel);
+
+        console.log(this.threshold);//
+
+        this.gradient = thresholding(Sobel, this.h, this.w, this.threshold);
+        this.flow = getFlow(this.gradient, this.w, this.h);
         this.dots = params.dots;//
-        //this.snake = [];
 
         this.length = 0;
         this.snake = this.dots;//
-        //this.snakelength = 0;//
 
         //binding the scope for animationFrameRequests
         this.update = this.update.bind(this);
@@ -31,18 +41,12 @@ export const KASS = function () {
 
         this.snake = this.dots;
 
-        //ok console.log(this.snake);
-
         this.it = 0;
         this.length = 0;
-        this.last = this.getsnakelength();//this.getsnakelength(this.snake);
-        // ok console.log(this.last);
+        this.last = this.getsnakelength();
         cancelAnimationFrame(this.interval);
 
-        // update вызывается рекурсивно
         this.update();
-        // _render и так вызывается в update
-        // this._render();
     }
 
     function update() {
@@ -57,9 +61,7 @@ export const KASS = function () {
         this.loop();
         this._render();
         this.length = this.getsnakelength();
-        // - console.log(this.length);//this.getsnakelength(this.snake);
         if (++this.it >= this.maxIteration) {
-            //console.log("points:", this.snake.length, 'iteration:', this.it);
             cancelAnimationFrame(this.interval);
             this._render(true);
         } else {
@@ -72,7 +74,7 @@ export const KASS = function () {
     function loop() {
 
 
-        var alpha = 1.1, beta = 1.2, gamma = 1.5, delta = 3.0;
+        var alpha = 1.1, beta = 1.2, gamma = 1.5;
 
         var wSize = 2;
 
@@ -80,8 +82,6 @@ export const KASS = function () {
         var e_curvature = init2DArray(wSize + 1, wSize + 1);
         //var e_flow = init2DArray(wSize + 1, wSize + 1);
 
-        //var e_inertia = init2DArray(wSize + 1, wSize + 1);
-        //var scope = this;
 
         let p = [];
         this.length = this.getsnakelength();
@@ -116,7 +116,7 @@ export const KASS = function () {
                     e = 0;
                     e += alpha * e_uniformity[1 + dx][1 + dy]; // internal energy
                     e += beta * e_curvature[(wSize / 2) + dx][(wSize / 2) + dy];  // internal energy
-                    //e += gamma * e_flow[(wSize / 2) + dx][(wSize / 2) + dy];       // external energy 0
+                    //e += gamma * e_flow[(wSize / 2) + dx][(wSize / 2) + dy];  // external energy
                     if (e < emin) {
                         emin = e;
                         x = cur[0] + dx;
@@ -199,7 +199,7 @@ export const KASS = function () {
         }
     }
 
-    function f_uniformity(prev, snakelength, p, snakesize) { //next?
+    function f_uniformity(prev, snakelength, p, snakesize) {
 
         // length of previous segment
         let un = distance(prev, p);
@@ -229,6 +229,61 @@ export const KASS = function () {
         // curvature energy
         let cn = cx * cx + cy * cy;
         return cn;
+    }
+
+    function filtrSobel(data, columns, rows) {
+
+        let channelGradient = init2DArray(rows, columns);
+
+        let maxgradient = 0;
+        for (let y = 0; y < rows - 2; y++) {
+            for (let x = 0; x < columns - 2; x++) {
+                let p00 = data[y][x];
+                let p10 = data[y + 1][x];
+                let p20 = data[y + 2][x];
+                let p01 = data[y][x + 1];
+                let p21 = data[y + 2][x + 1];
+                let p02 = data[y][x + 2];
+                let p12 = data[y + 1][x + 2];
+                let p22 = data[y + 2][x + 2];
+                let sx = (p20 + 2 * p21 + p22) - (p00 + 2 * p01 + p02);
+                let sy = (p02 + 2 * p12 + p22) - (p00 + 2 * p10 + p10);
+                let snorm = Math.floor(Math.sqrt(sx * sx + sy * sy));
+                channelGradient[y + 1][x + 1] = snorm;
+                maxgradient = Math.max(maxgradient, snorm);
+            }
+        }
+
+        return channelGradient;
+
+    }
+
+    function thresholding(channelGradient, rows, columns, threshold) {
+        let binarygradient = init2DArray(rows, columns);
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                if (channelGradient[y][x] > threshold) {
+                    binarygradient[y][x] = 1;
+                } else {
+                    channelGradient[y][x] = 0;
+                }
+            }
+        }
+        return binarygradient;
+    }
+
+    function getFlow(binarygradient, columns, rows) {
+        //ChamferDistance
+        let dist = ChamferDistance.compute(ChamferDistance.chamfer13, binarygradient, columns, rows);
+
+        //channelFlow
+        let channelFlow = init2DArray(rows, columns);
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                channelFlow[x][y] = Math.floor(dist[x][y])
+            }
+        }
+        return channelFlow;
     }
 
     // total length of snake

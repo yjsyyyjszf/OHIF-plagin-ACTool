@@ -2,8 +2,6 @@ import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
 import debounce from 'lodash/debounce';
 
-import {mean} from "mathjs";
-import {ChamferDistance} from "./ChamferDistance"
 import {KASS} from "./KASS"
 
 const BaseTool = csTools.importInternal("base/BaseTool");
@@ -23,22 +21,14 @@ export default class ACTool extends BaseTool {
 
         this.doActiveContour = debounce(evt => {
 
-            let binaryFradient = this.gradient;//
-            let chDist = this.flow;//
-            let width = this.w;//
-            let height = this.h;//
-            let points = this.point;//
-
             var acm = new KASS({
                 maxIteration: 100,
                 minlen: 3,
                 maxlen: 6,
-
-                gradient: binaryFradient,
-                flow: chDist,
-                width: width,
-                height: height,
-                dots: [...points],
+                image: this.pixelArray2D,
+                width: this.w,
+                height: this.h,
+                dots: [...this.point],
 
                 render(snake, i, iLength, finished) {
                     console.log(snake);
@@ -56,8 +46,6 @@ export default class ACTool extends BaseTool {
         const eventData = evt.detail;
         const {rows, columns} = eventData.image;
         const imageData = eventData.image.getPixelData();
-
-        let threshold;
 
         const generalSeriesModuleMeta = cornerstone.metaData.get(
             'generalSeriesModule',
@@ -84,68 +72,10 @@ export default class ACTool extends BaseTool {
 
         //TODO разобраться как преобразовать снимки маммографии к grayscale
         //TODO нормализовать или нет значения в грейскайл, пока заисит от алгоритма
-        //console.log(grayScale);
 
-        let pixelArray2D = get2DArray(grayScale, rows, columns);
-
-        //Sobel
-        let channelGradient = init2DArray(rows, columns);
-
-        let maxgradient = 0;
-        for (let y = 0; y < rows - 2; y++) {
-            for (let x = 0; x < columns - 2; x++) {
-                let p00 = pixelArray2D[y][x];//
-                let p10 = pixelArray2D[y + 1][x];
-                let p20 = pixelArray2D[y + 2][x];
-                let p01 = pixelArray2D[y][x + 1];
-                let p21 = pixelArray2D[y + 2][x + 1];
-                let p02 = pixelArray2D[y][x + 2];
-                let p12 = pixelArray2D[y + 1][x + 2];
-                let p22 = pixelArray2D[y + 2][x + 2];
-                let sx = (p20 + 2 * p21 + p22) - (p00 + 2 * p01 + p02);
-                let sy = (p02 + 2 * p12 + p22) - (p00 + 2 * p10 + p10);
-                let snorm = Math.floor(Math.sqrt(sx * sx + sy * sy));
-                channelGradient[y + 1][x + 1] = snorm;
-                maxgradient = Math.max(maxgradient, snorm);
-            }
-        }
-
-        //console.log(channelGradient);
-
-        //threshold mean
-        threshold = mean(channelGradient); //может будет настраиваемым параметром
-        //console.log(threshold);
-
-        //thresholding
-        let binarygradient = init2DArray(rows, columns);
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < columns; x++) {
-                if (channelGradient[y][x] > threshold) {
-                    binarygradient[y][x] = 1;
-                } else {
-                    channelGradient[y][x] = 0;
-                }
-            }
-        }
-
-        //console.log(binarygradient);
-
-        //ChamferDistance
-        let dist = ChamferDistance.compute(ChamferDistance.chamfer13, binarygradient, columns, rows);
-        //console.log(dist);
-
-        //channelFlow
-        let channelFlow = init2DArray(rows, columns);
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < columns; x++) {
-                channelFlow[x][y] = Math.floor(dist[x][y])
-            }
-        }
-
+        this.pixelArray2D = get2DArray(grayScale, rows, columns);
         this.w = columns;
         this.h = rows;
-        this.gradient = binarygradient;
-        this.flow = dist;
         let mousePosition = eventData.currentPoints.image;
         let radius = 30;
         this.point = getCircle(radius, rows, columns, mousePosition.x.valueOf(), mousePosition.y.valueOf());
@@ -155,10 +85,7 @@ export default class ACTool extends BaseTool {
 
         /*
        разобраться с масштабом
-        //render circle's contour radius = r
-        let mousePosition = eventData.currentPoints.image;
-        let radius = 30;
-        const circleArray = getCircle(radius, rows, columns, mousePosition.x.valueOf(), mousePosition.y.valueOf());
+
 
         GVF - значения нормируются, в kass нет
         рефакторинг кода после завершения каждого этапа
@@ -174,7 +101,6 @@ export default class ACTool extends BaseTool {
             circle[i] = new Point((int) x, (int) y);
         }
 
-        TODO вынести функции обработки в сами алгоритмы
     */
     }
 
@@ -229,17 +155,6 @@ function get2DArray(imagePixelData, height, width) {
         );
     }
     return Array2d;
-}
-
-function init2DArray(rows, columns) {
-    let arr = [];
-    for (let i = 0; i < rows; i++) {
-        arr[i] = [];
-        for (let j = 0; j < columns; j++) {
-            arr[i][j] = 0;
-        }
-    }
-    return arr;
 }
 
 
