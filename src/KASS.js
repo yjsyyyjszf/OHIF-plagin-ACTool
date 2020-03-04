@@ -15,10 +15,9 @@ export const KASS = function () {
 
         const w = params.width;
         const h = params.height;
-        const Sobel = filtrSobel(params.image, w, h);
-        const threshold = params.threshold || mean(Sobel);
+        const threshold = params.threshold || mean(params.image);
 
-        this.gradient = thresholding(Sobel, h, w, threshold);
+        this.gradient = filtrSobel(params.image, w, h, threshold);
         this.flow = getFlow(this.gradient, w, h);
 
         this.length = 0;
@@ -205,7 +204,7 @@ export const KASS = function () {
         return d;
     }
 
-    function filtrSobel(data, columns, rows) {
+    function filtrSobel(data, columns, rows, threshold) {
 
         let channelGradient = init2DArray(rows, columns);
 
@@ -223,29 +222,19 @@ export const KASS = function () {
                 let sx = (p20 + 2 * p21 + p22) - (p00 + 2 * p01 + p02);
                 let sy = (p02 + 2 * p12 + p22) - (p00 + 2 * p10 + p10);
                 let snorm = Math.floor(Math.sqrt(sx * sx + sy * sy));
-                channelGradient[y + 1][x + 1] = snorm;
+
+                if (snorm > threshold) {
+                    channelGradient[y + 1][x + 1] = snorm;
+                } else {
+                    channelGradient[y + 1][x + 1] = 0;
+                }
+
                 maxgradient = Math.max(maxgradient, snorm);
             }
         }
 
         return channelGradient;
 
-    }
-
-    function thresholding(channelGradient, rows, columns, threshold) {
-
-        let binarygradient = init2DArray(rows, columns);
-
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < columns; x++) {
-                if (channelGradient[y][x] > threshold) {
-                    binarygradient[y][x] = 1;
-                } else {
-                    channelGradient[y][x] = 0;
-                }
-            }
-        }
-        return binarygradient;
     }
 
     function getFlow(binarygradient, columns, rows) {
@@ -337,7 +326,6 @@ export const KASS = function () {
     p.getsnakelength = getsnakelength;
     return KASS;
 }();
-
 
 //TODO add missing points
 //TODO delete overlapping points

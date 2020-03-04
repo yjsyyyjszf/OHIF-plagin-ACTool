@@ -29,6 +29,7 @@ export default class ACTool extends BaseTool {
                 width: this.w,
                 height: this.h,
                 dots: [...this.point],
+                threshold: 80,
 
                 render(snake, i, iLength, finished) {
                     console.log(snake);
@@ -83,25 +84,6 @@ export default class ACTool extends BaseTool {
         //Kass
         this.doActiveContour(evt);
 
-        /*
-       разобраться с масштабом (ближе к отрисовке контуров)
-
-
-        GVF - значения нормируются, в kass нет
-        рефакторинг кода после завершения каждого этапа
-
-        // initial points побыстрее инициализирует окоужность
-        double radius = ((W)/2 + (H)/2) / 2;
-        double perimeter = 6.28 * radius*0.6;
-        int nmb = (int) (perimeter / MAXLEN);
-        Point[] circle = new Point[nmb];
-        for (int i = 0; i < circle.length; i++) {
-            double x = (W / 2 + 0) + (W / 2 - 2) * Math.cos((6.28 * i) / circle.length);
-            double y = (H / 2 + 0) + (H / 2 - 2) * Math.sin((6.28 * i) / circle.length);
-            circle[i] = new Point((int) x, (int) y);
-        }
-
-    */
     }
 
 
@@ -157,4 +139,24 @@ function get2DArray(imagePixelData, height, width) {
     return Array2d;
 }
 
+
+/*
+разобраться с масштабом (ближе к отрисовке контуров)
+
+GVF - значения нормируются, в kass нет
+рефакторинг кода после завершения каждого этапа
+
+// initial points побыстрее инициализирует окружность
+double radius = ((W)/2 + (H)/2) / 2;
+double perimeter = 6.28 * radius*0.6;
+int nmb = (int) (perimeter / MAXLEN);
+Point[] circle = new Point[nmb];
+for (int i = 0; i < circle.length; i++) {
+    double x = (W / 2 + 0) + (W / 2 - 2) * Math.cos((6.28 * i) / circle.length);
+    double y = (H / 2 + 0) + (H / 2 - 2) * Math.sin((6.28 * i) / circle.length);
+    circle[i] = new Point((int) x, (int) y);
+}
+
+//настройка параметров очень сильно отражается на результате (прям иногда может быть идеальный результат)
+*/
 
