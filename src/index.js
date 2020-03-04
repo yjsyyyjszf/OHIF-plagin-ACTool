@@ -21,7 +21,7 @@ export default class ACTool extends BaseTool {
 
         this.doActiveContour = debounce(evt => {
 
-            var acm = new KASS({
+            var kass = new KASS({
                 maxIteration: 100,
                 minlen: 3,
                 maxlen: 6,
@@ -35,7 +35,7 @@ export default class ACTool extends BaseTool {
                 }
             });
 
-            acm.compute();
+            kass.compute();
         }, 1000);
 
 
@@ -71,7 +71,7 @@ export default class ACTool extends BaseTool {
         }
 
         //TODO разобраться как преобразовать снимки маммографии к grayscale
-        //TODO нормализовать или нет значения в грейскайл, пока заисит от алгоритма
+        //нормализовать или нет значения в грейскайл, пока зависит от алгоритма
 
         this.pixelArray2D = get2DArray(grayScale, rows, columns);
         this.w = columns;
@@ -84,13 +84,13 @@ export default class ACTool extends BaseTool {
         this.doActiveContour(evt);
 
         /*
-       разобраться с масштабом
+       разобраться с масштабом (ближе к отрисовке контуров)
 
 
         GVF - значения нормируются, в kass нет
         рефакторинг кода после завершения каждого этапа
 
-        // initial points
+        // initial points побыстрее инициализирует окоужность
         double radius = ((W)/2 + (H)/2) / 2;
         double perimeter = 6.28 * radius*0.6;
         int nmb = (int) (perimeter / MAXLEN);

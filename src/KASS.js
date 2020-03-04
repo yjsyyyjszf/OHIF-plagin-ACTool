@@ -6,24 +6,23 @@ export const KASS = function () {
     function KASS(params) {
 
         this.maxIteration = params.maxIteration || 250;
-        this.minlen = params.minlen || Math.pow(.1, 2);
+        this.minlen = params.minlen || Math.pow(.1, 2); //not used
         this.maxlen = params.maxlen || Math.pow(5, 2);
-        this.params = params;//
-        this.w = params.width;
-        this.h = params.height;
+
         this.alpha = params.alpha || 1.1;
         this.beta = params.beta || 1.2;
         this.gamma = params.gamma || 1.5;
 
-        var Sobel = filtrSobel(params.image, this.w, this.h);
-        this.threshold = params.threshold || mean(Sobel);
+        const w = params.width;
+        const h = params.height;
+        const Sobel = filtrSobel(params.image, w, h);
+        const threshold = params.threshold || mean(Sobel);
 
-        this.gradient = thresholding(Sobel, this.h, this.w, this.threshold);
-        this.flow = getFlow(this.gradient, this.w, this.h);
-        this.dots = params.dots;//
+        this.gradient = thresholding(Sobel, h, w, threshold);
+        this.flow = getFlow(this.gradient, w, h);
 
         this.length = 0;
-        this.snake = this.dots;//
+        this.snake = params.dots;
 
         //binding the scope for animationFrameRequests
         this.update = this.update.bind(this);
@@ -36,8 +35,6 @@ export const KASS = function () {
     function compute(_onComplete) {
 
         this.onComplete = _onComplete;
-
-        this.snake = this.dots;
 
         this.it = 0;
         this.length = 0;
@@ -130,37 +127,8 @@ export const KASS = function () {
 
             newsnake.push([Math.floor(x), Math.floor(y)]);
         }
-        this.snake = newsnake;
 
-        //add / remove splain (TODO change on cubic + energy + refactor)
-        var tmp = [];
-        for (var i = 0; i < this.snake.length; i++) {
-
-            var prev = this.snake[(i - 1 < 0 ? this.snake.length - 1 : (i - 1))];
-            var cur = this.snake[i];
-            var next = this.snake[(i + 1) % this.snake.length];
-
-            var dist = distance(prev, cur) + distance(cur, next);
-
-            //if the length is too short, don't use this point anymore
-            if (dist > this.minlen) {
-
-                //if it is below the max length
-                if (dist < this.maxlen) {
-                    //store the point
-                    tmp.push(cur);
-
-                } else {
-                    //otherwise split the previous and the next edges
-                    var pp = [lerp(.5, prev[0], cur[0]), lerp(.5, prev[1], cur[1])];
-                    var np = [lerp(.5, cur[0], next[0]), lerp(.5, cur[1], next[1])];
-
-                    // and add the midpoints to the snake
-                    tmp.push(pp, np);
-                }
-            }
-        }
-        this.snake = tmp;
+        this.snake = rebuild(newsnake, this.maxlen);
 
         return this.snake;
     }
@@ -265,7 +233,9 @@ export const KASS = function () {
     }
 
     function thresholding(channelGradient, rows, columns, threshold) {
+
         let binarygradient = init2DArray(rows, columns);
+
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < columns; x++) {
                 if (channelGradient[y][x] > threshold) {
@@ -279,6 +249,7 @@ export const KASS = function () {
     }
 
     function getFlow(binarygradient, columns, rows) {
+
         //ChamferDistance
         let dist = ChamferDistance.compute(ChamferDistance.chamfer13, binarygradient, columns, rows);
 
@@ -290,6 +261,53 @@ export const KASS = function () {
             }
         }
         return channelFlow;
+    }
+
+    function rebuild(snake, maxlen) {
+
+        let tmp = [];
+
+        // precompute length(i) = length of the snake from start to point #i
+        let clength = new Array(snake.length + 1);
+        clength[0] = 0;
+        for (let i = 0; i < snake.length; i++) {
+            let cur = snake[i];
+            let next = snake[(i + 1) % snake.length];
+            clength[i + 1] = clength[i] + distance(cur, next);
+
+        }
+
+        // compute number of points in the new snake
+        let total = clength[snake.length];
+        let nmb = Math.floor(0.5 + total / maxlen);
+
+        // build a new snake
+        for (let i = 0, j = 0; j < nmb; j++) {
+            let dist = (j * total) / nmb;
+            while (!(clength[i] <= dist && dist < clength[i + 1])) {
+                i++;
+            }
+            // get points (P-1,P,P+1,P+2) in the original snake
+            let prev = snake[(i + snake.length - 1) % snake.length];
+            let cur = snake[i];
+            let next = snake[(i + 1) % snake.length];
+            let next2 = snake[(i + 2) % snake.length];
+
+            // do cubic spline interpolation
+            let t = (dist - clength[i]) / (clength[i + 1] - clength[i]);
+            let t2 = t * t;
+            let t3 = t2 * t;
+            let c0 = t3;
+            let c1 = -3 * t3 + 3 * t2 + 3 * t + 1;
+            let c2 = 3 * t3 - 6 * t2 + 4;
+            let c3 = -1 * t3 + 3 * t2 - 3 * t + 1;
+            let x = prev[0] * c3 + cur[0] * c2 + next[0] * c1 + next2[0] * c0;
+            let y = prev[1] * c3 + cur[1] * c2 + next[1] * c1 + next2[1] * c0;
+
+            // add computed point to the new snake
+            tmp.push([Math.floor(0.5 + x / 6), Math.floor(0.5 + y / 6)]);
+        }
+        return tmp;
     }
 
     // total length of snake
@@ -309,9 +327,6 @@ export const KASS = function () {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    function lerp(t, a, b) {
-        return Math.floor(a + t * (b - a));
-    }
 
     var p = KASS.prototype;
     p.constructor = KASS;
@@ -322,3 +337,9 @@ export const KASS = function () {
     p.getsnakelength = getsnakelength;
     return KASS;
 }();
+
+
+//TODO add missing points
+//TODO delete overlapping points
+//TODO refactor(name, structure) + comment
+//TODO exception (length == 0 ...)
