@@ -17,8 +17,8 @@ export const KASS = function () {
         const h = params.height;
         const threshold = params.threshold || mean(params.image);
 
-        this.gradient = filtrSobel(params.image, w, h, threshold);
-        this.flow = getFlow(this.gradient, w, h);
+        this.gradient = countChannelGradient(params.image, w, h, threshold);
+        this.flow = countFlow(this.gradient, w, h);
 
         this.length = 0;
         this.snake = params.dots;
@@ -204,8 +204,9 @@ export const KASS = function () {
         return d;
     }
 
-    function filtrSobel(data, columns, rows, threshold) {
+    function countChannelGradient(data, columns, rows, threshold) {
 
+        //Sobel
         let channelGradient = init2DArray(rows, columns);
 
         let maxgradient = 0;
@@ -237,7 +238,7 @@ export const KASS = function () {
 
     }
 
-    function getFlow(binarygradient, columns, rows) {
+    function countFlow(binarygradient, columns, rows) {
 
         //ChamferDistance
         let dist = ChamferDistance.compute(ChamferDistance.chamfer13, binarygradient, columns, rows);
@@ -327,7 +328,10 @@ export const KASS = function () {
     return KASS;
 }();
 
-//TODO add missing points
-//TODO delete overlapping points
+
 //TODO refactor(name, structure) + comment
 //TODO exception (length == 0 ...)
+//TODO inertia force?
+
+//(TODO add missing points)
+//(TODO delete overlapping points)
