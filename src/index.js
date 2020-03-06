@@ -3,6 +3,7 @@ import cornestone from "cornerstone-core";
 import debounce from 'lodash/debounce';
 
 import {KASS} from "./KASS"
+import {GVF} from "./GVF";
 
 const BaseTool = csTools.importInternal("base/BaseTool");
 
@@ -21,7 +22,7 @@ export default class ACTool extends BaseTool {
 
         this.doActiveContour = debounce(evt => {
 
-            var kass = new KASS({
+            var gvf = new GVF({
                 maxIteration: 100,
                 minlen: 3,
                 maxlen: 6,
@@ -29,14 +30,14 @@ export default class ACTool extends BaseTool {
                 width: this.w,
                 height: this.h,
                 dots: [...this.point],
-                threshold: 80,
+                //threshold: 80,
 
                 render(snake, i, iLength, finished) {
                     console.log(snake);
                 }
             });
 
-            kass.compute();
+            gvf.compute();
         }, 1000);
 
 
