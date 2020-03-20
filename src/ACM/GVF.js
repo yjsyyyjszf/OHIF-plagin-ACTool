@@ -456,9 +456,4 @@ export const GVF = function () {
     return GVF;
 }();
 
-//TODO inertia force?
-//TODO refactor(name, structure) + comment
-//TODO exception (length == 0 ...)
 
-//(TODO add missing points)
-//(TODO delete overlapping points)

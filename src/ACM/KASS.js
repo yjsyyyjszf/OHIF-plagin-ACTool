@@ -204,7 +204,7 @@ export const KASS = function () {
         return d;
     }
 
-    function countChannelGradient(data, columns, rows, threshold) {
+    function countChannelGradient(data, columns, rows) { //
 
         //Sobel
         let channelGradient = init2DArray(rows, columns);
@@ -223,13 +223,7 @@ export const KASS = function () {
                 let sx = (p20 + 2 * p21 + p22) - (p00 + 2 * p01 + p02);
                 let sy = (p02 + 2 * p12 + p22) - (p00 + 2 * p10 + p10);
                 let snorm = Math.floor(Math.sqrt(sx * sx + sy * sy));
-
-                if (snorm > threshold) {
-                    channelGradient[y + 1][x + 1] = snorm;
-                } else {
-                    channelGradient[y + 1][x + 1] = 0;
-                }
-
+                channelGradient[y + 1][x + 1] = snorm;
                 maxgradient = Math.max(maxgradient, snorm);
             }
         }
@@ -329,9 +323,3 @@ export const KASS = function () {
 }();
 
 
-//TODO refactor(name, structure) + comment
-//TODO exception (length == 0 ...)
-//TODO inertia force?
-
-//(TODO add missing points)
-//(TODO delete overlapping points)
