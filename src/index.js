@@ -1,18 +1,33 @@
 import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
 
+
 const {drawBrushPixels} = csTools.importInternal(
     'util/segmentationUtils'
 );
 const segmentationModule = csTools.getModule('segmentation');
 const BaseBrushTool = csTools.importInternal("base/BaseBrushTool");
+const MouseCursor = csTools.importInternal('tools/cursors/MouseCursor');
+
+const activeContourCursor = new MouseCursor(
+    `<path stroke="ACTIVE_COLOR" fill="none" stroke-width="3" d="M30.74 15.76C30.74 20.99 24.14 25.23 16
+    25.23C7.86 25.23 1.26 20.99 1.26 15.76C1.26 10.54 7.86 6.3 16 6.3C24.14
+    6.3 30.74 10.54 30.74 15.76Z"
+    />`,
+    {
+        viewBox: {
+            x: 32,
+            y: 32,
+        },
+    }
+);
 
 export default class ACTool extends BaseBrushTool {
     constructor(props = {}) {
         const defaultProps = {
             name: 'ACTool',
             supportedInteractionTypes: ['Mouse', 'Touch'],
-            //configuration: {},
+            svgCursor: activeContourCursor
         };
 
         super(props, defaultProps);
@@ -21,6 +36,8 @@ export default class ACTool extends BaseBrushTool {
         this.renderBrush = this.renderBrush.bind(this);
         this.mouseDragCallback = this.mouseDragCallback.bind(this);
         this._paint = this._paint.bind(this);
+        this.initPoints = [];
+
 
     }
 
@@ -31,8 +48,6 @@ export default class ACTool extends BaseBrushTool {
 
         const eventData = evt.detail;
         const {element, currentPoints} = eventData;
-
-        //init
 
         // Start point
         this.startCoords = currentPoints.image;
@@ -66,93 +81,19 @@ export default class ACTool extends BaseBrushTool {
     }
 
     _paint(evt) {
-
-        //для начала вывести массив точек
-        console.log(this.initPoints); //для произвольного контура и окружности
-        /*
-        //нарисовать через drawBrush
-        //
-        const element = evt.detail.element;
-        const {getters} = segmentationModule;
-
-        const {
-            labelmap2D,
-            labelmap3D,
-            currentImageIdIndex,
-            activeLabelmapIndex,
-        } = getters.labelmap2D(element);
-
-        //const shouldErase =
-        //   super._isCtrlDown(evt.detail) || this.configuration.alwaysEraseOnClick;
-        /*
-        this.paintEventData = {
-            labelmap2D,
-            labelmap3D,
-            currentImageIdIndex,
-            activeLabelmapIndex,
-            shouldErase,
-        };
-         */
-
-        //const {labelmap2D, labelmap3D} = this.paintEventData;
-/*
-        drawBrushPixels(
-            this.initPoints,
-            labelmap2D.pixelData,
-            labelmap3D.activeSegmentIndex,
-            evt.detail.image.columns,
-            false
-        );
-
-        cornerstone.updateImage(element);
-        */
-        //animation
-        //segmentation
-        //csTools.setToolActive('StackScrollMouseWheel', {});
-        //return null;
+        const numberOfPoints = 100;
+        // if contour - ellipse
+        // bag - scale
+        // Pixel coord, not canvas
+        this.initPoints = generateEllipse(this.startCoords, this.ellipseWidth, this.ellipseHeight, numberOfPoints);
+        // else...
+        console.log(this.initPoints);
+        this.initPoints = []
     }
 
     renderBrush(evt) {
-        //убрать повторы кода
-        this.initPoints = [];
-        /* произвольный контур
-                if (this._drawing) {
-
-                    this.initPoints = [];
-                    const eventData = evt.detail;
-                    const viewport = eventData.viewport;//
-                    const context = eventData.canvasContext;
-                    const element = eventData.element;
-                    let mouseEndPosition, mouseStartPosition;
-
-                    mouseStartPosition = this.startCoords;
-                    mouseEndPosition = this._lastImageCoords;
-
-                    context.strokeStyle = "rgb(0,255,0)";
-                    context.setTransform(1, 0, 0, 1, 0, 0);
-
-                    const startCoordsCanvas = window.cornerstone.pixelToCanvas(
-                        element,
-                        mouseStartPosition,
-                    );
-
-                    context.moveTo(startCoordsCanvas.x,startCoordsCanvas.y);
-                    context.beginPath();
-                    let endCoordsCanvas = window.cornerstone.pixelToCanvas(
-                        element,
-                        mouseEndPosition,
-                    );
-                    context.lineTo(endCoordsCanvas.x,endCoordsCanvas.y);
-                    context.closePath();
-                    context.stroke();
-
-                    this._lastImageCoords = eventData.image;
-
-
-                }*/
-        //контур-окружность
         if (this._drawing) {
-            //запоминать центр, ширину,высоту, потом просто генерить точки, но надо количество
+
             const eventData = evt.detail;
             const {getters} = segmentationModule;
             const viewport = eventData.viewport;
@@ -161,9 +102,8 @@ export default class ACTool extends BaseBrushTool {
             let mouseStartPosition, mouseEndPosition;
             let width, height;
 
-            mouseEndPosition = this._lastImageCoords; //end ellipse point
-            mouseStartPosition = this.startCoords; //start ellipse point
-
+            mouseEndPosition = this._lastImageCoords;
+            mouseStartPosition = this.startCoords;
             context.strokeStyle = "rgba(0,255,0)";
 
             width = Math.abs(mouseStartPosition.x - mouseEndPosition.x) * viewport.scale;
@@ -207,60 +147,8 @@ export default class ACTool extends BaseBrushTool {
             );
 
             context.stroke();
-            //наверное, разумней генерировать один раз уже прямо в _paint, здесь только запоминать + проблемы с масштабом
-            this.initPoints = generateEllipse(mouseStartPosition, width, height, 100);//number of points - как определять?
-            this._lastImageCoords = eventData.image;
-        } else {
-
-            //cursor
-            const eventData = evt.detail;
-            const viewport = eventData.viewport;
-            const context = eventData.canvasContext;
-            const element = eventData.element;
-            let mousePosition;
-            let width;
-
-
-            mousePosition = csTools.store.state.mousePositionImage;
-            const radius = 1;
-            width = radius * viewport.scale;
-            context.strokeStyle = "rgb(0,255,0)";
-            context.fillStyle = "rgb(0,255,0)";
-
-
-            if (!mousePosition) {
-                return;
-            }
-
-            const {rows, columns} = eventData.image;
-            const {x, y} = mousePosition;
-
-            if (x < 0 || x > columns || y < 0 || y > rows) {
-                return;
-            }
-
-            context.setTransform(1, 0, 0, 1, 0, 0);
-
-            context.beginPath();
-
-            const mouseCoords = window.cornerstone.pixelToCanvas(
-                element,
-                mousePosition,
-            );
-
-            context.ellipse(
-                mouseCoords.x,
-                mouseCoords.y,
-                width,
-                width,
-                0,
-                0,
-                2 * Math.PI,
-            );
-
-            context.stroke();
-            context.fill();
-
+            this.ellipseWidth = width;
+            this.ellipseHeight = height;
             this._lastImageCoords = eventData.image;
         }
     }
