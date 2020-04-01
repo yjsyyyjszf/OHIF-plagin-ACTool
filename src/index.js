@@ -1,6 +1,8 @@
 import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
 
+import debounce from 'lodash/debounce';
+import {ACM} from './acm_test'
 
 const {drawBrushPixels} = csTools.importInternal(
     'util/segmentationUtils'
@@ -23,6 +25,7 @@ const activeContourCursor = new MouseCursor(
 );
 
 export default class ACTool extends BaseBrushTool {
+
     constructor(props = {}) {
         const defaultProps = {
             name: 'ACTool',
@@ -36,7 +39,66 @@ export default class ACTool extends BaseBrushTool {
         this.renderBrush = this.renderBrush.bind(this);
         this.mouseDragCallback = this.mouseDragCallback.bind(this);
         this._paint = this._paint.bind(this);
-        this.initPoints = [];
+
+
+        this.runAnimation = debounce(evt => {
+
+            let points = this.initPoints;
+            //this.initPoints = [];
+
+            const canvas = document.getElementsByClassName(
+                'cornerstone-canvas'
+            )[0];
+
+            const canvasContext = canvas.getContext('2d');
+            const it = 500;
+            const thresh = 0.6;
+
+            const originalPicture = new Image();
+            originalPicture.src = canvas.toDataURL();
+
+            var acm = new ACM({
+
+                maxIteration: it,
+                minlen: 1,
+                maxlen: 3,
+                threshold: thresh,
+
+                imageData: this.imagePixelData,
+                width: this.width,
+                height: this.height,
+                dots: [...points],
+
+                render(snake, i, iLength, finished) {
+
+                    //if(finished){
+                    // this.finishSnake = snake
+                    //}
+
+                    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+                    canvasContext.drawImage(originalPicture, 0, 0);
+                    canvasContext.lineWidth = 2;
+                    canvasContext.strokeStyle = "rgb(0,255,0)";
+                    canvasContext.beginPath();
+
+                    snake.forEach(function (p) {
+                        let point = {x: 0, y: 0};
+                        point.x = p[0];
+                        point.y = p[1];
+                        let canvasPoint = cornestone.pixelToCanvas(evt.detail.element, point);
+                        canvasContext.lineTo(canvasPoint.x, canvasPoint.y);
+                    });
+
+                    canvasContext.closePath();
+                    canvasContext.stroke();
+
+
+                }
+            });
+
+            acm.compute();
+
+        }, 1000);
 
 
     }
@@ -48,6 +110,33 @@ export default class ACTool extends BaseBrushTool {
 
         const eventData = evt.detail;
         const {element, currentPoints} = eventData;
+
+        // init image
+        const {rows, columns} = eventData.image;
+        this.width = columns;
+        this.height = rows;
+
+        const generalSeriesModuleMeta = cornerstone.metaData.get(
+            'generalSeriesModule',
+            eventData.image.imageId
+        );
+
+        const pixelArray = eventData.image.getPixelData();
+        let grayScale;
+
+        // add other cases
+        switch (generalSeriesModuleMeta.modality) {
+            case 'CT':
+                grayScale = pixelArray.map(value =>
+                    Math.round(((value + 2048) / 4096) * 255)
+                );
+                break;
+
+            default:
+                grayScale = pixelArray;
+        }
+
+        this.imagePixelData = get2DArray(grayScale, rows, columns);
 
         // Start point
         this.startCoords = currentPoints.image;
@@ -81,17 +170,27 @@ export default class ACTool extends BaseBrushTool {
     }
 
     _paint(evt) {
+
         const numberOfPoints = 100;
         // if contour - ellipse
         // bag - scale
-        // Pixel coord, not canvas
+        // Pixel coordinates, not canvas
         this.initPoints = generateEllipse(this.startCoords, this.ellipseWidth, this.ellipseHeight, numberOfPoints);
         // else...
         console.log(this.initPoints);
-        this.initPoints = []
+
+        //Active contour
+        console.log('run AC');
+        //this.runAnimation(evt);
+
+        //Segmentation
+
+        csTools.setToolActive('StackScrollMouseWheel', {});
+
     }
 
     renderBrush(evt) {
+
         if (this._drawing) {
 
             const eventData = evt.detail;
@@ -150,9 +249,11 @@ export default class ACTool extends BaseBrushTool {
             this.ellipseWidth = width;
             this.ellipseHeight = height;
             this._lastImageCoords = eventData.image;
-        }
-    }
 
+            //this.initPoints = generateEllipse(mouseStartPosition, width, height, 100);//
+        }
+
+    }
 }
 
 function generateEllipse(mouseStartPosition, width, height, n) {
@@ -160,10 +261,23 @@ function generateEllipse(mouseStartPosition, width, height, n) {
     let x, y;
 
     for (let i = 0; i < n; i++) {
-        x = Math.floor(mouseStartPosition.x + Math.floor(Math.cos(2 * Math.PI / n * i) * (width / 2)));
-        y = Math.floor(mouseStartPosition.y + Math.floor(Math.sin(2 * Math.PI / n * i) * (height / 2)));
+        x = Math.floor(mouseStartPosition.x.valueOf() + Math.floor(Math.cos(2 * Math.PI / n * i) * (width / 2)));
+        y = Math.floor(mouseStartPosition.y.valueOf() + Math.floor(Math.sin(2 * Math.PI / n * i) * (height / 2)));
         points.push([x, y]);
+
     }
 
+    //console.log(points);
+
     return points;
+}
+
+function get2DArray(imagePixelData, height, width) {
+    let Array2d = [];
+    for (let i = 0; i < height; i++) {
+        Array2d.push(
+            Array.from(imagePixelData.slice(i * width, (i + 1) * width))
+        );
+    }
+    return Array2d;
 }
