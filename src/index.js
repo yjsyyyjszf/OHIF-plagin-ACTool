@@ -171,16 +171,10 @@ export default class ACTool extends BaseBrushTool {
 
     _paint(evt) {
 
-        const numberOfPoints = 100;
-        // if contour - ellipse
-        // bag - scale
-        // Pixel coordinates, not canvas
-        this.initPoints = generateEllipse(this.startCoords, this.ellipseWidth, this.ellipseHeight, numberOfPoints);
-        // else...
-        console.log(this.initPoints);
+        //console.log(this.initPoints);
 
         //Active contour
-        console.log('run AC');
+        //console.log('run AC');
         //this.runAnimation(evt);
 
         //Segmentation
@@ -193,20 +187,19 @@ export default class ACTool extends BaseBrushTool {
 
         if (this._drawing) {
 
+            this.initPoints = [];
+
             const eventData = evt.detail;
             const {getters} = segmentationModule;
-            const viewport = eventData.viewport;
             const context = eventData.canvasContext;
             const element = eventData.element;
             let mouseStartPosition, mouseEndPosition;
-            let width, height;
+
 
             mouseEndPosition = this._lastImageCoords;
             mouseStartPosition = this.startCoords;
             context.strokeStyle = "rgba(0,255,0)";
 
-            width = Math.abs(mouseStartPosition.x - mouseEndPosition.x) * viewport.scale;
-            height = Math.abs(mouseStartPosition.y - mouseEndPosition.y) * viewport.scale;
 
             if (!mouseStartPosition) {
                 return;
@@ -230,27 +223,22 @@ export default class ACTool extends BaseBrushTool {
 
             context.beginPath();
 
-            const startCoordsCanvas = window.cornerstone.pixelToCanvas(
+            let startCoordsCanvas = window.cornerstone.pixelToCanvas(
                 element,
                 mouseStartPosition,
             );
 
-            context.ellipse(
-                startCoordsCanvas.x,
-                startCoordsCanvas.y,
-                width,
-                height,
-                0,
-                0,
-                2 * Math.PI,
+            let endCoordsCanvas = window.cornerstone.pixelToCanvas(
+                element,
+                mouseEndPosition,
             );
 
+            context.moveTo(startCoordsCanvas.x,startCoordsCanvas.y);
+            context.lineTo(endCoordsCanvas.x,endCoordsCanvas.y);
+
             context.stroke();
-            this.ellipseWidth = width;
-            this.ellipseHeight = height;
             this._lastImageCoords = eventData.image;
 
-            //this.initPoints = generateEllipse(mouseStartPosition, width, height, 100);//
         }
 
     }
