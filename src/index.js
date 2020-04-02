@@ -43,8 +43,7 @@ export default class ACTool extends BaseBrushTool {
 
         this.runAnimation = debounce(evt => {
 
-            let points = this.initPoints;
-            //this.initPoints = [];
+            //let points = this.coord;
 
             const canvas = document.getElementsByClassName(
                 'cornerstone-canvas'
@@ -104,6 +103,9 @@ export default class ACTool extends BaseBrushTool {
     }
 
     preMouseDownCallback(evt) {
+
+        //for drawing
+        this.coord = [];
 
         // Lock switching images when rendering data
         csTools.setToolDisabled('StackScrollMouseWheel', {});
@@ -171,13 +173,33 @@ export default class ACTool extends BaseBrushTool {
 
     _paint(evt) {
 
-        //console.log(this.initPoints);
+        console.log(this.coord);
+/*
+        const element = evt.detail.element;
+        const {getters} = segmentationModule;
+        const {
+            labelmap2D,
+            labelmap3D,
+            currentImageIdIndex,
+            activeLabelmapIndex,
+        } = getters.labelmap2D(element);
 
+
+        drawBrushPixels(
+            this.coord,
+            labelmap2D.pixelData,
+            labelmap3D.activeSegmentIndex,
+            evt.detail.image.columns,
+            false
+        );
+        cornerstone.updateImage(element);
+*/
         //Active contour
         //console.log('run AC');
         //this.runAnimation(evt);
 
-        //Segmentation
+        //Finish Segmentation
+
 
         csTools.setToolActive('StackScrollMouseWheel', {});
 
@@ -187,56 +209,29 @@ export default class ACTool extends BaseBrushTool {
 
         if (this._drawing) {
 
-            this.initPoints = [];
-
             const eventData = evt.detail;
-            const {getters} = segmentationModule;
             const context = eventData.canvasContext;
             const element = eventData.element;
-            let mouseStartPosition, mouseEndPosition;
+            let mouseEndPosition;
 
 
             mouseEndPosition = this._lastImageCoords;
-            mouseStartPosition = this.startCoords;
+
+            //let endCoordsCanvas = cornestone.pixelToCanvas(element, mouseEndPosition); //canvas
             context.strokeStyle = "rgba(0,255,0)";
+            this.coord.push([mouseEndPosition.x, mouseEndPosition.y]);
 
-
-            if (!mouseStartPosition) {
-                return;
-            }
-
-            const {rows, columns} = eventData.image;
-            const {x, y} = mouseStartPosition;
-
-            if (x < 0 || x > columns || y < 0 || y > rows) {
-                return;
-            }
-
-            context.setTransform(1, 0, 0, 1, 0, 0);
-
-            const {labelmap2D} = getters.labelmap2D(element);
-
-            const getPixelIndex = (x, y) => y * columns + x;
-            const spIndex = getPixelIndex(Math.floor(x), Math.floor(y));
-            const isInside = labelmap2D.pixelData[spIndex] === 1;
-            this.shouldErase = !isInside;
+            context.clearRect(0, 0, context.width, context.height);
 
             context.beginPath();
+            context.moveTo(this.coord[0][0], this.coord[0][1]);
 
-            let startCoordsCanvas = window.cornerstone.pixelToCanvas(
-                element,
-                mouseStartPosition,
-            );
-
-            let endCoordsCanvas = window.cornerstone.pixelToCanvas(
-                element,
-                mouseEndPosition,
-            );
-
-            context.moveTo(startCoordsCanvas.x,startCoordsCanvas.y);
-            context.lineTo(endCoordsCanvas.x,endCoordsCanvas.y);
-
+            for (let i = 1; i < this.coord.length; i++) {
+                context.lineTo(this.coord[i][0], this.coord[i][1]);
+            }
+            context.closePath();
             context.stroke();
+
             this._lastImageCoords = eventData.image;
 
         }
@@ -244,21 +239,6 @@ export default class ACTool extends BaseBrushTool {
     }
 }
 
-function generateEllipse(mouseStartPosition, width, height, n) {
-    let points = [];
-    let x, y;
-
-    for (let i = 0; i < n; i++) {
-        x = Math.floor(mouseStartPosition.x.valueOf() + Math.floor(Math.cos(2 * Math.PI / n * i) * (width / 2)));
-        y = Math.floor(mouseStartPosition.y.valueOf() + Math.floor(Math.sin(2 * Math.PI / n * i) * (height / 2)));
-        points.push([x, y]);
-
-    }
-
-    //console.log(points);
-
-    return points;
-}
 
 function get2DArray(imagePixelData, height, width) {
     let Array2d = [];
