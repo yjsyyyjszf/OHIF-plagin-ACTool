@@ -1,8 +1,7 @@
 import csTools from "cornerstone-tools";
 import cornestone from "cornerstone-core";
 
-import debounce from 'lodash/debounce';
-import {ACM} from './acm_test'
+import {ChamferDistance} from './acm_test'
 
 const {drawBrushPixels} = csTools.importInternal(
     'util/segmentationUtils'
@@ -24,6 +23,7 @@ const activeContourCursor = new MouseCursor(
     }
 );
 
+
 export default class ACTool extends BaseBrushTool {
 
     constructor(props = {}) {
@@ -39,65 +39,6 @@ export default class ACTool extends BaseBrushTool {
         this.renderBrush = this.renderBrush.bind(this);
         this.mouseDragCallback = this.mouseDragCallback.bind(this);
         this._paint = this._paint.bind(this);
-
-
-        this.runAnimation = debounce(evt => {
-
-            //let points = this.coord;
-
-            const canvas = document.getElementsByClassName(
-                'cornerstone-canvas'
-            )[0];
-
-            const canvasContext = canvas.getContext('2d');
-            const it = 500;
-            const thresh = 0.6;
-
-            const originalPicture = new Image();
-            originalPicture.src = canvas.toDataURL();
-
-            var acm = new ACM({
-
-                maxIteration: it,
-                minlen: 1,
-                maxlen: 3,
-                threshold: thresh,
-
-                imageData: this.imagePixelData,
-                width: this.width,
-                height: this.height,
-                dots: [...points],
-
-                render(snake, i, iLength, finished) {
-
-                    //if(finished){
-                    // this.finishSnake = snake
-                    //}
-
-                    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-                    canvasContext.drawImage(originalPicture, 0, 0);
-                    canvasContext.lineWidth = 2;
-                    canvasContext.strokeStyle = "rgb(0,255,0)";
-                    canvasContext.beginPath();
-
-                    snake.forEach(function (p) {
-                        let point = {x: 0, y: 0};
-                        point.x = p[0];
-                        point.y = p[1];
-                        let canvasPoint = cornestone.pixelToCanvas(evt.detail.element, point);
-                        canvasContext.lineTo(canvasPoint.x, canvasPoint.y);
-                    });
-
-                    canvasContext.closePath();
-                    canvasContext.stroke();
-
-
-                }
-            });
-
-            acm.compute();
-
-        }, 1000);
 
 
     }
@@ -168,39 +109,18 @@ export default class ACTool extends BaseBrushTool {
         this.finishCoords = currentPoints.image;
         this._drawing = false;
         super._stopListeningForMouseUp(element);
+
         this._paint(evt);
     }
 
     _paint(evt) {
 
+        console.log('init');
         console.log(this.coord);
-/*
-        const element = evt.detail.element;
-        const {getters} = segmentationModule;
-        const {
-            labelmap2D,
-            labelmap3D,
-            currentImageIdIndex,
-            activeLabelmapIndex,
-        } = getters.labelmap2D(element);
 
-
-        drawBrushPixels(
-            this.coord,
-            labelmap2D.pixelData,
-            labelmap3D.activeSegmentIndex,
-            evt.detail.image.columns,
-            false
-        );
-        cornerstone.updateImage(element);
-*/
-        //Active contour
-        //console.log('run AC');
-        //this.runAnimation(evt);
-
-        //Finish Segmentation
-
-
+        console.log('result');
+        this.result = computeACM(100,3,6,0.6,this.width,this.height,this.imagePixelData,this.coord);
+        console.log(this.result);
         csTools.setToolActive('StackScrollMouseWheel', {});
 
     }
@@ -221,14 +141,18 @@ export default class ACTool extends BaseBrushTool {
             context.strokeStyle = "rgba(0,255,0)";
             this.coord.push([mouseEndPosition.x, mouseEndPosition.y]);
 
+
             context.clearRect(0, 0, context.width, context.height);
 
             context.beginPath();
             context.moveTo(this.coord[0][0], this.coord[0][1]);
 
+
             for (let i = 1; i < this.coord.length; i++) {
                 context.lineTo(this.coord[i][0], this.coord[i][1]);
             }
+
+
             context.closePath();
             context.stroke();
 
@@ -248,4 +172,78 @@ function get2DArray(imagePixelData, height, width) {
         );
     }
     return Array2d;
+}
+
+function computeACM(maxIt, minLen, maxLen, threshold, w, h, imageData, initPoints) {
+
+    let contours = [];
+    let snake = initPoints;
+    var result = ChamferDistance.compute(ChamferDistance.chamfer13, imageData, threshold, w, h);
+
+    let flowX = result[0];
+    let flowY = result[1];
+
+    for (let i = 0; i < maxIt; i++) {
+        snake.forEach(function (p) {
+            if (p[0] <= 0 || p[0] >= w - 1 || p[1] <= 0 || p[1] >= h - 1) return;
+            var vx = (.5 - flowX[~~(p[0])][~~(p[1])]) * 2;
+            var vy = (.5 - flowY[~~(p[0])][~~(p[1])]) * 2;
+            p[0] += vx * 100;
+            p[1] += vy * 100;
+        });
+
+        //add / remove
+        var tmp = [];
+        for (var j = 0; j < snake.length; j++) {
+
+            var prev = snake[(j - 1 < 0 ? snake.length - 1 : (j - 1))];
+            var cur = snake[j];
+            var next = snake[(j + 1) % snake.length];
+
+            var dist = distance(prev, cur) + distance(cur, next);
+
+            //if the length is too short, don't use this point anymore
+            if (dist > minLen) {
+
+                //if it is below the max length
+                if (dist < maxLen) {
+                    //store the point
+                    tmp.push(cur);
+
+                } else {
+                    //otherwise split the previous and the next edges
+                    var pp = [lerp(.5, prev[0], cur[0]), lerp(.5, prev[1], cur[1])];
+                    var np = [lerp(.5, cur[0], next[0]), lerp(.5, cur[1], next[1])];
+
+                    // and add the midpoints to the snake
+                    tmp.push(pp, np);
+                }
+            }
+        }
+        snake = tmp;
+        contours.push(snake);
+    }
+
+    return contours;
+}
+
+// total length of snake
+function getsnakelength(snake) {
+    var length = 0;
+    for (var i = 0; i < snake.length; i++) {
+        var cur = snake[i];
+        var next = snake[(i + 1) % snake.length];
+        length += distance(cur, next);
+    }
+    return length;
+}
+
+function distance(a, b) {
+    var dx = a[0] - b[0];
+    var dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+}
+
+function lerp(t, a, b) {
+    return a + t * (b - a);
 }
