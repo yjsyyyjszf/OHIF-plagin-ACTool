@@ -119,7 +119,7 @@ export default class ACTool extends BaseBrushTool {
         console.log(this.coord);
 
         console.log('result');
-        this.result = computeACM(100,3,6,0.6,this.width,this.height,this.imagePixelData,this.coord);
+        this.result = computeACM(100,3,6,0.6,this.width,this.height,this.imagePixelData,[...this.coord.map(it => [...it])]);
         console.log(this.result);
         csTools.setToolActive('StackScrollMouseWheel', {});
 
@@ -139,7 +139,7 @@ export default class ACTool extends BaseBrushTool {
 
             //let endCoordsCanvas = cornestone.pixelToCanvas(element, mouseEndPosition); //canvas
             context.strokeStyle = "rgba(0,255,0)";
-            this.coord.push([mouseEndPosition.x, mouseEndPosition.y]);
+            this.coord.push([mouseEndPosition.x.valueOf(), mouseEndPosition.y.valueOf()]);
 
 
             context.clearRect(0, 0, context.width, context.height);
@@ -178,6 +178,8 @@ function computeACM(maxIt, minLen, maxLen, threshold, w, h, imageData, initPoint
 
     let contours = [];
     let snake = initPoints;
+
+
     var result = ChamferDistance.compute(ChamferDistance.chamfer13, imageData, threshold, w, h);
 
     let flowX = result[0];

@@ -224,8 +224,8 @@ export const ChamferDistance = function (chamfer) {
         for (var y = 0; y < h; y++) {
             for (var x = 0; x < w; x++) {
                 //var id = ( y * w + x ) * 4;
-                //var luma = 0.212 * ( data[id] / 0xFF ) + 0.7152 * ( data[id + 1] / 0xFF ) + 0.0722 * ( data[id + 2] / 0xFF );
-                if (data[x][y] <= threshold) {
+                var luma = data[y][x] / 255;
+                if (luma <= threshold) {
                     gradient[x][y] = -1;
                 }
 
